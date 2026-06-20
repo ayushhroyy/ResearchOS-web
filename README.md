@@ -10,7 +10,7 @@ red", "add a 3-column table". Export to Markdown or PDF.
 - **Next.js 16** (App Router, TS) + **TipTap** + **Tailwind/shadcn**
 - **Cloudflare Pages** via `@opennextjs/cloudflare` (edge runtime)
 - **aimlapi** (OpenAI-compatible) for LLM + vision + embeddings + OCR
-- **Supabase** — Postgres + `pgvector` + Storage + Auth (RLS-isolated)
+- **Supabase** — Postgres + `pgvector` + Storage
 - **Serper** for web search
 
 ## Setup
@@ -20,8 +20,10 @@ red", "add a 3-column table". Export to Markdown or PDF.
    - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
    - `SERPER_API_KEY`
 3. Supabase: create project → SQL editor → run `supabase/schema.sql`.
-   Create a **private** Storage bucket named `sources`. Enable Email + an OAuth
-   provider under Auth.
+   Create a **private** Storage bucket named `sources`.
+   The app uses one shared workspace owner. Set `RESEARCHOS_USER_ID` to the
+   UUID you want rows to use, or leave it unset for
+   `00000000-0000-0000-0000-000000000000`.
 4. `npm run dev` → http://localhost:3000
 
 ## Scripts
@@ -35,7 +37,8 @@ red", "add a 3-column table". Export to Markdown or PDF.
 1. `npm run build:worker`
 2. `npx wrangler r2 bucket create rabbitt-ai-opennext-cache`
 3. Set secrets: `npx wrangler secret put AIMLAPI_KEY`,
-   `... SUPABASE_SERVICE_ROLE_KEY`, `... SERPER_API_KEY`.
+   `... SUPABASE_SERVICE_ROLE_KEY`, `... SERPER_API_KEY`, and optionally
+   `... RESEARCHOS_USER_ID`.
    (Public vars like `NEXT_PUBLIC_*` go in `.env` for the build, then in the
    dashboard or `wrangler.jsonc` `vars`.)
 4. `npm run deploy`

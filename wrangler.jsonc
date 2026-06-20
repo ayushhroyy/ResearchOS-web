@@ -27,7 +27,16 @@
 		"binding": "IMAGES"
 	},
 	"vars": {
-		// Non-secret defaults; secrets (AIMLAPI_KEY, SUPABASE_SERVICE_ROLE_KEY,
-		// SERPER_API_KEY) are set via `wrangler secret put <NAME>`.
+		// Plaintext (public) vars. Secrets (AIMLAPI_KEY, SUPABASE_SERVICE_ROLE_KEY,
+		// SERPER_API_KEY) are set via `wrangler secret put <NAME>` and NOT here —
+		// wrangler deploy treats this file as the source of truth for vars, so
+		// they MUST live here or they get wiped on every deploy.
+		"AIMLAPI_BASE_URL": "https://api.aimlapi.com/v1",
+		"AIMLAPI_CHAT_MODEL": "deepseek/deepseek-v4-flash",
+		"AIMLAPI_VISION_MODEL": "deepseek/deepseek-v4-flash",
+		"AIMLAPI_OCR_MODEL": "mistral-ocr-latest",
+		"AIMLAPI_EMBEDDING_MODEL": "text-embedding-3-small",
+		"AIMLAPI_EMBEDDING_DIM": "1536",
+		"NEXT_PUBLIC_APP_URL": "https://rabbitt-ai.youtopialabs.workers.dev"
 	}
 }

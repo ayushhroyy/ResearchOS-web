@@ -8,10 +8,10 @@ create extension if not exists vector;
 -- KNOWLEDGE CLUSTER: uploaded sources + their chunked/embedded text
 -- ────────────────────────────────────────────────────────────────────────────
 
--- A source = one uploaded file (image, pdf, note). Owned by a user.
+-- A source = one uploaded file (image, pdf, note). Owned by the shared workspace id.
 create table if not exists sources (
   id           uuid primary key default gen_random_uuid(),
-  user_id      uuid not null references auth.users (id) on delete cascade,
+  user_id      uuid not null,
   name         text not null,                       -- original filename
   mime_type    text not null,
   storage_path text not null,                       -- path in the "sources" bucket
@@ -32,7 +32,7 @@ create index if not exists sources_user_idx on sources (user_id, created_at desc
 create table if not exists chunks (
   id          uuid primary key default gen_random_uuid(),
   source_id   uuid not null references sources (id) on delete cascade,
-  user_id     uuid not null references auth.users (id) on delete cascade,
+  user_id     uuid not null,
   ordinal     int  not null,                        -- position within the source
   content     text not null,
   embedding   vector(1536) not null,
@@ -52,7 +52,7 @@ create index if not exists chunks_embedding_idx on chunks
 
 create table if not exists documents (
   id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null references auth.users (id) on delete cascade,
+  user_id     uuid not null,
   title       text not null default 'Untitled',
   doc         jsonb not null default '{"type":"doc","content":[]}'::jsonb,
   created_at  timestamptz not null default now(),
@@ -62,7 +62,9 @@ create table if not exists documents (
 create index if not exists documents_user_idx on documents (user_id, updated_at desc);
 
 -- ────────────────────────────────────────────────────────────────────────────
--- ROW LEVEL SECURITY — every table is isolated by auth.uid()
+-- ROW LEVEL SECURITY
+-- App route handlers use the service-role key and a shared RESEARCHOS_USER_ID.
+-- RLS remains enabled so anon clients cannot read/write these tables directly.
 -- ────────────────────────────────────────────────────────────────────────────
 
 alter table sources    enable row level security;

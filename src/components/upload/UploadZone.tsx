@@ -6,7 +6,6 @@
 //   3. onDone() lets the parent refresh the sources list
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useAuth } from "@/components/auth/AuthProvider";
 
 export interface UploadItem {
   name: string;
@@ -15,19 +14,13 @@ export interface UploadItem {
 }
 
 export function UploadZone({ onDone }: { onDone?: () => void }) {
-  const { session } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<UploadItem[]>([]);
   const [dragging, setDragging] = useState(false);
 
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
-      if (!session) {
-        toast.error("Sign in first");
-        return;
-      }
       const list = Array.from(files);
-      const token = session.access_token;
 
       const staged: UploadItem[] = list.map((f) => ({
         name: f.name,
@@ -50,7 +43,6 @@ export function UploadZone({ onDone }: { onDone?: () => void }) {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
               },
               body: JSON.stringify({
                 name: file.name,
@@ -78,7 +70,6 @@ export function UploadZone({ onDone }: { onDone?: () => void }) {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
               },
               body: JSON.stringify({ sourceId: t.sourceId }),
             });
@@ -98,7 +89,7 @@ export function UploadZone({ onDone }: { onDone?: () => void }) {
 
       onDone?.();
     },
-    [session, onDone],
+    [onDone],
   );
 
   return (

@@ -7,7 +7,6 @@
 // editor pane (right) and this chat pane (middle) stay in sync.
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Editor } from "@tiptap/react";
@@ -29,7 +28,6 @@ export interface ChatPanelProps {
 }
 
 export function ChatPanel({ doc, onDoc, onTitle, applyEdits }: ChatPanelProps) {
-  const { session } = useAuth();
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
@@ -43,7 +41,7 @@ export function ChatPanel({ doc, onDoc, onTitle, applyEdits }: ChatPanelProps) {
 
   const send = useCallback(async () => {
     const text = input.trim();
-    if (!text || !session || busy) return;
+    if (!text || busy) return;
 
     setMessages((m) => [...m, { role: "user", content: text }]);
     setInput("");
@@ -57,7 +55,6 @@ export function ChatPanel({ doc, onDoc, onTitle, applyEdits }: ChatPanelProps) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({ message: text, doc }),
         });
@@ -91,7 +88,6 @@ export function ChatPanel({ doc, onDoc, onTitle, applyEdits }: ChatPanelProps) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({ query: text }),
         });
@@ -140,7 +136,7 @@ export function ChatPanel({ doc, onDoc, onTitle, applyEdits }: ChatPanelProps) {
       setBusy(false);
       setStatus(null);
     }
-  }, [input, session, busy, doc, onDoc, onTitle, applyEdits]);
+  }, [input, busy, doc, onDoc, onTitle, applyEdits]);
 
   const hasDoc = !!doc && (doc.content?.length ?? 0) > 0;
 

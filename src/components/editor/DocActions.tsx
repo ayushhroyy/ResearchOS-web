@@ -3,7 +3,6 @@
 // references. Rendered in the editor pane header.
 import { useState } from "react";
 import { toast } from "sonner";
-import { useAuth } from "@/components/auth/AuthProvider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,7 +27,6 @@ export interface DocActionsProps {
 }
 
 export function DocActions({ title, doc, onAddWebRefs }: DocActionsProps) {
-  const { session } = useAuth();
   const [searching, setSearching] = useState(false);
   const [webQuery, setWebQuery] = useState("");
 
@@ -53,14 +51,13 @@ export function DocActions({ title, doc, onAddWebRefs }: DocActionsProps) {
   };
 
   const runWebSearch = async () => {
-    if (!session || !webQuery.trim() || !onAddWebRefs) return;
+    if (!webQuery.trim() || !onAddWebRefs) return;
     setSearching(true);
     try {
       const res = await fetch("/api/web", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ query: webQuery, num: 6 }),
       });

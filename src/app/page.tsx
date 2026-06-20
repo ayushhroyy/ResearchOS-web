@@ -1,8 +1,5 @@
 "use client";
 import { useCallback, useRef, useState } from "react";
-import { useAuth } from "@/components/auth/AuthProvider";
-import { SignIn } from "@/components/auth/SignIn";
-import { Button } from "@/components/ui/button";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -17,8 +14,6 @@ import type { Editor } from "@tiptap/react";
 import type { Op, TipTapDoc } from "@/lib/doc/schema";
 
 export default function Home() {
-  const { session, loading } = useAuth();
-
   // Document state lives at the top so the chat (input) and editor (display)
   // share it. The editor's live instance is captured so ops can be applied.
   const [doc, setDoc] = useState<TipTapDoc | null>(null);
@@ -63,16 +58,6 @@ export default function Home() {
     setDoc(editor.getJSON() as unknown as TipTapDoc);
   }, []);
 
-  if (loading) {
-    return (
-      <div className="text-muted-foreground flex flex-1 items-center justify-center text-sm">
-        Loading…
-      </div>
-    );
-  }
-
-  if (!session) return <SignIn />;
-
   return (
     <div className="app-canvas flex h-screen flex-col">
       <header className="border-border/70 flex h-12 shrink-0 items-center justify-between border-b px-4 backdrop-blur-sm">
@@ -83,7 +68,6 @@ export default function Home() {
             agentic document editing
           </span>
         </div>
-        <SignOut />
       </header>
 
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
@@ -149,19 +133,5 @@ function PaneShell({
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
     </div>
-  );
-}
-
-function SignOut() {
-  const { supabase } = useAuth();
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={() => supabase?.auth.signOut()}
-      className="text-muted-foreground hover:text-foreground"
-    >
-      Sign out
-    </Button>
   );
 }

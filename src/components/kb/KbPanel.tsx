@@ -1,7 +1,6 @@
 "use client";
 // Knowledge cluster panel: lists indexed sources, lets you test retrieval.
 import { useCallback, useEffect, useState } from "react";
-import { useAuth } from "@/components/auth/AuthProvider";
 import { UploadZone } from "@/components/upload/UploadZone";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,7 +26,6 @@ interface SearchResult {
 const KIND_LABEL = { image: "IMG", pdf: "PDF", note: "TXT" } as const;
 
 export function KbPanel() {
-  const { session } = useAuth();
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -37,10 +35,8 @@ export function KbPanel() {
   // loadSources does the fetch + state updates as one async unit. We avoid
   // any synchronous setState in the effect body (React 19 rule) by setting
   // loading=false INSIDE the awaited promise resolution instead of a .finally.
-  const loadSources = useCallback(async (token: string) => {
-    const res = await fetch("/api/sources", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  const loadSources = useCallback(async () => {
+    const res = await fetch("/api/sources");
     if (res.ok) {
       const { sources } = (await res.json()) as { sources: Source[] };
       setSources(sources);
@@ -49,23 +45,21 @@ export function KbPanel() {
   }, []);
 
   useEffect(() => {
-    if (!session) return;
     // Initial fetch on mount/auth-change. setState happens inside the async
     // callback, not synchronously here — but the rule can't see through the
     // await, so we scope it to this line.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadSources(session.access_token);
-  }, [session, loadSources]);
+    void loadSources();
+  }, [loadSources]);
 
   const refresh = useCallback(async () => {
-    if (!session) return;
     setLoading(true);
-    await loadSources(session.access_token);
+    await loadSources();
     setLoading(false);
-  }, [session, loadSources]);
+  }, [loadSources]);
 
   const runSearch = async () => {
-    if (!session || !query.trim()) return;
+    if (!query.trim()) return;
     setSearching(true);
     setResults(null);
     try {
@@ -73,7 +67,6 @@ export function KbPanel() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ query, matchCount: 6 }),
       });
