@@ -28,14 +28,14 @@ create table if not exists sources (
 create index if not exists sources_user_idx on sources (user_id, created_at desc);
 
 -- A chunk = a ~500-token slice of a source's text, with its embedding.
--- Vector dim MUST match AIMLAPI_EMBEDDING_DIM (default 1024).
+-- Vector dim MUST match AIMLAPI_EMBEDDING_DIM (default 1536 for text-embedding-3-small).
 create table if not exists chunks (
   id          uuid primary key default gen_random_uuid(),
   source_id   uuid not null references sources (id) on delete cascade,
   user_id     uuid not null references auth.users (id) on delete cascade,
   ordinal     int  not null,                        -- position within the source
   content     text not null,
-  embedding   vector(1024) not null,
+  embedding   vector(1536) not null,
   created_at  timestamptz not null default now(),
   unique (source_id, ordinal)
 );
@@ -119,7 +119,7 @@ create policy "sources storage delete own" on storage.objects
 -- Vector search helper: top-k chunks for a user by cosine similarity.
 -- Call: select * from match_chunks(query_embedding := $1, query_user := $2, match_count := 5)
 create or replace function match_chunks(
-  query_embedding vector(1024),
+  query_embedding vector(1536),
   query_user      uuid,
   match_count     int default 6
 ) returns table (

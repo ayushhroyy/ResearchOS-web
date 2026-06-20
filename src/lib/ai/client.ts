@@ -17,7 +17,7 @@ export const AI_MODELS = {
 } as const;
 
 export const EMBEDDING_DIM = Number(
-  process.env.AIMLAPI_EMBEDDING_DIM ?? 1024,
+  process.env.AIMLAPI_EMBEDDING_DIM ?? 1536,
 );
 
 // Lazily built so importing this module never throws in environments
