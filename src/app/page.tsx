@@ -85,7 +85,6 @@ export default function Home() {
             doc={doc}
             onDoc={setDoc}
             onTitle={setTitle}
-            onEditorReady={(e) => (editorRef.current = e)}
             applyEdits={applyEdits}
           />
         </ResizablePanel>
@@ -105,7 +104,11 @@ export default function Home() {
               <DocActions title={title} doc={doc} onAddWebRefs={addWebRefs} />
             </div>
             <div className="min-h-0 flex-1" data-print="doc">
-              <TipTapEditor doc={doc} onChange={setDoc} />
+              <TipTapEditor
+                doc={doc}
+                onChange={setDoc}
+                onReady={(e) => (editorRef.current = e)}
+              />
             </div>
           </div>
         </ResizablePanel>

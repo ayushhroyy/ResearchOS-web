@@ -9,7 +9,6 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { Editor } from "@tiptap/react";
 import type { Op, TipTapDoc } from "@/lib/doc/schema";
 import type { ApplyResult } from "@/lib/doc/ops";
 
@@ -22,7 +21,6 @@ export interface ChatPanelProps {
   doc: TipTapDoc | null;
   onDoc: (doc: TipTapDoc) => void;
   onTitle: (title: string) => void;
-  onEditorReady?: (editor: Editor) => void;
   /** Apply agent ops to the live editor. Returns how many succeeded. */
   applyEdits?: (ops: Op[]) => ApplyResult;
 }
