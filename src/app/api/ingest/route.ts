@@ -15,8 +15,6 @@ import { ocrUrl } from "@/lib/ai/ocr";
 import { embedBatch } from "@/lib/ai/embed";
 import { chunkText } from "@/lib/doc/chunk";
 
-export const runtime = "edge";
-
 export async function POST(req: Request) {
   const userId = await userIdFromRequest(req);
   if (!userId) {

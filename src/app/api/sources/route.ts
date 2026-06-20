@@ -2,8 +2,6 @@
 import { NextResponse } from "next/server";
 import { adminClient, userIdFromRequest } from "@/lib/db/supabase";
 
-export const runtime = "edge";
-
 export async function GET(req: Request) {
   const userId = await userIdFromRequest(req);
   if (!userId) {

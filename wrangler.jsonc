@@ -37,6 +37,8 @@
 		"AIMLAPI_OCR_MODEL": "mistral-ocr-latest",
 		"AIMLAPI_EMBEDDING_MODEL": "text-embedding-3-small",
 		"AIMLAPI_EMBEDDING_DIM": "1536",
-		"NEXT_PUBLIC_APP_URL": "https://rabbitt-ai.youtopialabs.workers.dev"
+		"NEXT_PUBLIC_APP_URL": "https://rabbitt-ai.youtopialabs.workers.dev",
+		"NEXT_PUBLIC_SUPABASE_URL": "https://tybaqefujckkwdskztjp.supabase.co",
+		"NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5YmFxZWZ1amNra3dkc2t6dGpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5Mzk2MjUsImV4cCI6MjA5NzUxNTYyNX0.XmPDBAJriCF-_7AeSx-JrPcsvCg-_QZ9QsEUD-7EByk"
 	}
 }

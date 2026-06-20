@@ -5,8 +5,6 @@ import { NextResponse } from "next/server";
 import { adminClient, userIdFromRequest } from "@/lib/db/supabase";
 import { nanoid } from "nanoid";
 
-export const runtime = "edge";
-
 function kindOf(mime: string): "image" | "pdf" | "note" {
   if (mime.startsWith("image/")) return "image";
   if (mime === "application/pdf") return "pdf";

@@ -8,8 +8,6 @@ import { userIdFromRequest } from "@/lib/db/supabase";
 import { planEdit } from "@/lib/ai/agent";
 import type { TipTapDoc } from "@/lib/doc/schema";
 
-export const runtime = "edge";
-
 export async function POST(req: Request) {
   const userId = await userIdFromRequest(req);
   if (!userId) {

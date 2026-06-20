@@ -21,8 +21,6 @@ import { docFromSpecs } from "@/lib/doc/build";
 import type { NodeSpec } from "@/lib/doc/schema";
 import { nanoid } from "nanoid";
 
-export const runtime = "edge";
-
 const MAX_STEPS = 6; // bound the loop so it always terminates
 
 interface ChunkHit {

@@ -5,8 +5,6 @@ import { NextResponse } from "next/server";
 import { adminClient, userIdFromRequest } from "@/lib/db/supabase";
 import { embed } from "@/lib/ai/embed";
 
-export const runtime = "edge";
-
 export async function POST(req: Request) {
   const userId = await userIdFromRequest(req);
   if (!userId) {

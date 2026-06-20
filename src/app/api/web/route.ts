@@ -5,8 +5,6 @@ import { NextResponse } from "next/server";
 import { userIdFromRequest } from "@/lib/db/supabase";
 import { webSearch } from "@/lib/ai/web";
 
-export const runtime = "edge";
-
 export async function POST(req: Request) {
   const userId = await userIdFromRequest(req);
   if (!userId) {
