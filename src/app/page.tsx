@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { SignIn } from "@/components/auth/SignIn";
 import { Button } from "@/components/ui/button";
@@ -11,8 +11,9 @@ import {
 import { KbPanel } from "@/components/kb/KbPanel";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { TipTapEditor } from "@/components/editor/TipTapEditor";
+import { applyOps, type ApplyResult } from "@/lib/doc/ops";
 import type { Editor } from "@tiptap/react";
-import type { TipTapDoc } from "@/lib/doc/schema";
+import type { Op, TipTapDoc } from "@/lib/doc/schema";
 
 export default function Home() {
   const { session, loading } = useAuth();
@@ -22,6 +23,16 @@ export default function Home() {
   const [doc, setDoc] = useState<TipTapDoc | null>(null);
   const [title, setTitle] = useState("Untitled");
   const editorRef = useRef<Editor | null>(null);
+
+  // Apply a batch of agent ops to the live editor, then sync state up.
+  const applyEdits = useCallback((ops: Op[]): ApplyResult => {
+    const editor = editorRef.current;
+    if (!editor) return { applied: 0, skipped: [] };
+    const result = applyOps(editor, ops);
+    // Sync the editor's now-current doc back into React state.
+    setDoc(editor.getJSON() as unknown as TipTapDoc);
+    return result;
+  }, []);
 
   if (loading) {
     return (
@@ -61,6 +72,7 @@ export default function Home() {
             onDoc={setDoc}
             onTitle={setTitle}
             onEditorReady={(e) => (editorRef.current = e)}
+            applyEdits={applyEdits}
           />
         </ResizablePanel>
         <ResizableHandle />

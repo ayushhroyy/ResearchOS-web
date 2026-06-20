@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Editor } from "@tiptap/react";
-import type { TipTapDoc } from "@/lib/doc/schema";
+import type { Op, TipTapDoc } from "@/lib/doc/schema";
+import type { ApplyResult } from "@/lib/doc/ops";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -24,9 +25,11 @@ export interface ChatPanelProps {
   onDoc: (doc: TipTapDoc) => void;
   onTitle: (title: string) => void;
   onEditorReady?: (editor: Editor) => void;
+  /** Apply agent ops to the live editor. Returns how many succeeded. */
+  applyEdits?: (ops: Op[]) => ApplyResult;
 }
 
-export function ChatPanel({ doc, onDoc, onTitle }: ChatPanelProps) {
+export function ChatPanel({ doc, onDoc, onTitle, applyEdits }: ChatPanelProps) {
   const { session } = useAuth();
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -49,10 +52,38 @@ export function ChatPanel({ doc, onDoc, onTitle }: ChatPanelProps) {
     try {
       const hasDoc = !!doc && (doc.content?.length ?? 0) > 0;
       if (hasDoc) {
-        // Phase 3: edit path wired up next.
+        // Edit path: ask the agent to plan ops, apply them to the editor.
+        const res = await fetch("/api/edit", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ message: text, doc }),
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j.error ?? "edit failed");
+        }
+        const { plan } = (await res.json()) as {
+          plan: { summary: string; ops: Op[] };
+        };
+        const result = applyEdits
+          ? applyEdits(plan.ops)
+          : { applied: 0, skipped: [] as ApplyResult["skipped"] };
         setMessages((m) => [
           ...m,
-          { role: "system", content: "Editing isn't wired up yet (Phase 3)." },
+          {
+            role: "assistant",
+            content:
+              `${plan.summary}\n\n` +
+              `Applied ${result.applied} of ${plan.ops.length} ops` +
+              (result.skipped.length
+                ? ` (skipped ${result.skipped.length}: ${result.skipped
+                    .map((s) => s.reason)
+                    .join("; ")})`
+                : ""),
+          },
         ]);
       } else {
         // Generate path: SSE stream from /api/generate.
@@ -93,7 +124,7 @@ export function ChatPanel({ doc, onDoc, onTitle }: ChatPanelProps) {
     } finally {
       setBusy(false);
     }
-  }, [input, session, busy, doc, onDoc, onTitle]);
+  }, [input, session, busy, doc, onDoc, onTitle, applyEdits]);
 
   const hasDoc = !!doc && (doc.content?.length ?? 0) > 0;
 
