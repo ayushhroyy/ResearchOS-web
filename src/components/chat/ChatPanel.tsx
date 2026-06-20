@@ -39,6 +39,7 @@ export function ChatPanel({ doc, onDoc, onTitle, applyEdits }: ChatPanelProps) {
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
 
   const send = useCallback(async () => {
     const text = input.trim();
@@ -99,17 +100,32 @@ export function ChatPanel({ doc, onDoc, onTitle, applyEdits }: ChatPanelProps) {
           throw new Error(j.error ?? "generate failed");
         }
         await readSse(res.body, {
+          status: (d) => {
+            const message = (d as { message?: string }).message;
+            if (message) setStatus(message);
+          },
           title: (d) => onTitle((d as { title: string }).title),
           done: (d) => {
-            onDoc((d as { doc: TipTapDoc }).doc);
+            const payload = d as {
+              doc: TipTapDoc;
+              sources?: { title: string; url: string }[];
+            };
+            onDoc(payload.doc);
+            const refCount = payload.sources?.length ?? 0;
+            setStatus(null);
             setMessages((m) => [
               ...m,
               {
                 role: "assistant",
                 content:
-                  "Done — your document is in the editor on the right. Ask for edits to refine it.",
+                  "Done — your document is in the editor. Ask for edits to refine it." +
+                  (refCount ? ` Grounded with ${refCount} web source${refCount > 1 ? "s" : ""}.` : ""),
               },
             ]);
+          },
+          error: (d) => {
+            const message = (d as { error?: string }).error ?? "generation failed";
+            throw new Error(message);
           },
         });
       }
@@ -122,6 +138,7 @@ export function ChatPanel({ doc, onDoc, onTitle, applyEdits }: ChatPanelProps) {
       ]);
     } finally {
       setBusy(false);
+      setStatus(null);
     }
   }, [input, session, busy, doc, onDoc, onTitle, applyEdits]);
 
@@ -148,7 +165,7 @@ export function ChatPanel({ doc, onDoc, onTitle, applyEdits }: ChatPanelProps) {
             <div className="flex items-center gap-2 px-1">
               <TypingDots />
               <span className="text-muted-foreground text-xs">
-                Working…
+                {status ?? "Working…"}
               </span>
             </div>
           )}

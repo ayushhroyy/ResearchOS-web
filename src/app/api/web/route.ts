@@ -1,10 +1,9 @@
 // Web search via Serper (https://serper.dev). Returns organic results with
-// title/url/snippet for citation. Used to fetch external references the
-// knowledge base doesn't already cover.
-//
-// Key is server-side only (SERPER_API_KEY); the client never sees it.
+// title/url/snippet for citation. Used standalone by the editor's web-reference
+// field; the agent loops call lib/ai/web directly.
 import { NextResponse } from "next/server";
 import { userIdFromRequest } from "@/lib/db/supabase";
+import { webSearch } from "@/lib/ai/web";
 
 export const runtime = "edge";
 
@@ -12,14 +11,6 @@ export async function POST(req: Request) {
   const userId = await userIdFromRequest(req);
   if (!userId) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
-  const key = process.env.SERPER_API_KEY;
-  if (!key) {
-    return NextResponse.json(
-      { error: "SERPER_API_KEY not configured" },
-      { status: 500 },
-    );
   }
 
   let query: string;
@@ -35,32 +26,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "query required" }, { status: 400 });
   }
 
-  const res = await fetch("https://google.serper.dev/search", {
-    method: "POST",
-    headers: {
-      "X-API-KEY": key,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ q: query, num }),
-  });
-
-  if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    return NextResponse.json(
-      { error: `serper ${res.status}: ${t.slice(0, 200)}` },
-      { status: 502 },
-    );
+  try {
+    const results = await webSearch(query, num);
+    return NextResponse.json({ results });
+  } catch (err) {
+    const m = err instanceof Error ? err.message : "search failed";
+    return NextResponse.json({ error: m }, { status: 502 });
   }
-
-  const data = (await res.json()) as {
-    organic?: { title: string; link: string; snippet?: string }[];
-  };
-
-  const results = (data.organic ?? []).map((r) => ({
-    title: r.title,
-    url: r.link,
-    snippet: r.snippet ?? "",
-  }));
-
-  return NextResponse.json({ results });
 }

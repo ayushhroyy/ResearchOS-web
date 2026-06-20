@@ -1,21 +1,29 @@
-// Generate a full document from a user query.
+// Generate a full document from a user query — AGENTIC.
 //
-// Flow: query → embed → vector search (top-k) → system prompt → LLM returns
-// a JSON array of NodeSpecs → we expand to TipTap JSON → stream it back to
-// the client as Server-Sent Events.
+// Flow: query → embed → vector search (top-k) → agentic loop where the model
+// may call `web_search` to research/ground, then calls `write_document` to
+// emit NodeSpecs. We expand to TipTap JSON and stream it back via SSE.
 //
-// The LLM is told to emit SIMPLE NodeSpecs (not ProseMirror internals); we
-// expand them server-side via buildBlock(). This keeps the model's output
-// cheap and reliable.
+// Web search is ALWAYS available to the model as a tool: it uses it whenever
+// the knowledge base doesn't cover something or needs grounding/recent info.
+//
+// SSE events:
+//   event: status  data: { message }      ← "Searching the web: …"
+//   event: title   data: { title }
+//   event: done    data: { docId, doc, sources }
 import { NextResponse } from "next/server";
+import type { ChatCompletionMessageParam } from "openai/resources";
 import { adminClient, userIdFromRequest } from "@/lib/db/supabase";
 import { embed } from "@/lib/ai/embed";
 import { aiClient, AI_MODELS } from "@/lib/ai/client";
+import { webSearch } from "@/lib/ai/web";
 import { docFromSpecs } from "@/lib/doc/build";
 import type { NodeSpec } from "@/lib/doc/schema";
 import { nanoid } from "nanoid";
 
 export const runtime = "edge";
+
+const MAX_STEPS = 6; // bound the loop so it always terminates
 
 interface ChunkHit {
   source_id: string;
@@ -23,9 +31,16 @@ interface ChunkHit {
   sourceName?: string;
 }
 
-const SYSTEM = `You are a document architect. Given a user request and a set of
-knowledge-base excerpts, produce a complete, well-structured document as a JSON
-object: { "title": string, "blocks": NodeSpec[] }.
+const SYSTEM = `You are ResearchOS, a document architect and researcher.
+Given a user request and knowledge-base excerpts, produce a complete,
+well-structured document.
+
+You have TWO tools:
+  1. web_search(query) — search the open web. Use it whenever the knowledge
+     base doesn't cover something, to verify facts, get recent info, or find
+     references/citations. Research as much as you need — it is always available.
+  2. write_document(title, blocks) — submit the final document. This ENDS the
+     task. blocks is an array of NodeSpec (see below).
 
 NodeSpec is one of:
   { "type": "heading",    "attrs": { "level": 1|2|3 }, "text": "..." }
@@ -42,8 +57,9 @@ Rules:
 - Do NOT include block ids; the system assigns them.
 - Lead with a single level-1 heading as the title.
 - Use 2-3 levels of headings to organize sections.
-- Ground the content in the provided excerpts; do not invent facts.
-- Output ONLY the JSON object, no markdown fences, no commentary.`;
+- Ground content in the knowledge base AND/OR web search. Do not invent facts
+  or numbers you couldn't verify. Prefer citing real sources.
+- When you're done researching, call write_document ONCE with the full document.`;
 
 export async function POST(req: Request) {
   const userId = await userIdFromRequest(req);
@@ -62,7 +78,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "query required" }, { status: 400 });
   }
 
-  // 1. Retrieve relevant chunks.
+  // 1. Retrieve relevant chunks (best-effort).
   let hits: ChunkHit[] = [];
   try {
     const qVec = await embed(query);
@@ -86,11 +102,9 @@ export async function POST(req: Request) {
       }));
     }
   } catch {
-    // Retrieval is best-effort; we can still generate without it.
     hits = [];
   }
 
-  // 2. Build the prompt.
   const context = hits.length
     ? hits
         .map(
@@ -100,46 +114,163 @@ export async function POST(req: Request) {
         .join("\n\n")
     : "(no matching excerpts found in the knowledge base)";
 
-  // 3. Call the LLM (non-streaming — we need the full JSON to parse safely).
-  const completion = await aiClient().chat.completions.create({
-    model: AI_MODELS.chat,
-    temperature: 0.4,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: SYSTEM },
-      {
-        role: "user",
-        content: `REQUEST:\n${query}\n\nKNOWLEDGE BASE:\n${context}`,
-      },
-    ],
-  });
+  // 2. SSE stream + run the agentic loop, pushing events as we go.
+  const encoder = new TextEncoder();
+  const sources: { title: string; url: string }[] = [];
 
-  const raw = completion.choices[0]?.message?.content ?? "{}";
-  let parsed: { title?: string; blocks?: unknown[] };
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return NextResponse.json(
-      { error: "model returned invalid JSON" },
-      { status: 502 },
-    );
-  }
-
-  // 4. Expand specs → TipTap JSON.
-  const doc = docFromSpecs((parsed.blocks ?? []) as NodeSpec[]);
-
-  // 5. SSE: a status event, then the final document.
-  const docId = "d" + nanoid(10);
-  const stream = new ReadableStream({
-    start(controller) {
-      const enc = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
       const send = (ev: string, data: unknown) =>
         controller.enqueue(
-          enc.encode(`event: ${ev}\ndata: ${JSON.stringify(data)}\n\n`),
+          encoder.encode(`event: ${ev}\ndata: ${JSON.stringify(data)}\n\n`),
         );
-      send("title", { title: parsed.title ?? "Untitled" });
-      send("done", { docId, doc });
-      controller.close();
+
+      try {
+        const messages: ChatCompletionMessageParam[] = [
+          { role: "system", content: SYSTEM },
+          {
+            role: "user",
+            content: `REQUEST:\n${query}\n\nKNOWLEDGE BASE:\n${context}`,
+          },
+        ];
+
+        let doc: ReturnType<typeof docFromSpecs> | null = null;
+        let title = "Untitled";
+
+        const tools = [
+          {
+            type: "function" as const,
+            function: {
+              name: "web_search",
+              description:
+                "Search the open web for information, facts, or references.",
+              parameters: {
+                type: "object",
+                properties: {
+                  query: { type: "string", description: "The search query." },
+                },
+                required: ["query"],
+              },
+            },
+          },
+          {
+            type: "function" as const,
+            function: {
+              name: "write_document",
+              description: "Submit the final document. Ends the task.",
+              parameters: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  blocks: {
+                    type: "array",
+                    description: "Ordered NodeSpec blocks.",
+                    items: { type: "object" },
+                  },
+                },
+                required: ["title", "blocks"],
+              },
+            },
+          },
+        ];
+
+        for (let step = 0; step < MAX_STEPS && !doc; step++) {
+          const completion = await aiClient().chat.completions.create({
+            model: AI_MODELS.chat,
+            temperature: 0.4,
+            messages,
+            tools,
+          });
+
+          const choice = completion.choices[0]?.message;
+          // Push the assistant turn into history (carries any tool_calls).
+          messages.push(choice);
+
+          const calls = choice?.tool_calls ?? [];
+          let producedDoc = false;
+
+          for (const call of calls) {
+            if (call.type !== "function") continue;
+            const fn = call.function;
+            let args: Record<string, unknown> = {};
+            try {
+              args = JSON.parse(fn.arguments || "{}");
+            } catch {
+              /* empty args */
+            }
+
+            if (fn.name === "web_search") {
+              const q = String(args.query ?? "");
+              send("status", { message: `Searching the web: ${q}` });
+              let resultText = "(no results)";
+              try {
+                const results = await webSearch(q, 6);
+                for (const r of results) {
+                  if (!sources.some((s) => s.url === r.url)) {
+                    sources.push({ title: r.title, url: r.url });
+                  }
+                }
+                resultText = results
+                  .map(
+                    (r, i) =>
+                      `${i + 1}. ${r.title}\n   ${r.url}\n   ${r.snippet}`,
+                  )
+                  .join("\n\n");
+              } catch {
+                resultText = "(web search failed; proceed without it)";
+              }
+              messages.push({
+                role: "tool",
+                tool_call_id: call.id,
+                content: JSON.stringify({ query: q, results: resultText }),
+              });
+              continue;
+            }
+
+            if (fn.name === "write_document") {
+              title = String(args.title ?? "Untitled");
+              const blocks = (args.blocks ?? []) as NodeSpec[];
+              doc = docFromSpecs(blocks);
+              producedDoc = true;
+              messages.push({
+                role: "tool",
+                tool_call_id: call.id,
+                content: JSON.stringify({ ok: true }),
+              });
+              break;
+            }
+          }
+
+          // No tool calls? The model may have emitted the doc as plain JSON
+          // (fallback path). Try to parse it.
+          if (!producedDoc && calls.length === 0 && choice?.content) {
+            try {
+              const parsed = JSON.parse(choice.content) as {
+                title?: string;
+                blocks?: NodeSpec[];
+              };
+              if (Array.isArray(parsed.blocks)) {
+                title = parsed.title ?? "Untitled";
+                doc = docFromSpecs(parsed.blocks);
+              }
+            } catch {
+              /* not JSON; keep looping */
+            }
+          }
+        }
+
+        if (!doc) {
+          send("error", { error: "could not generate a document" });
+        } else {
+          send("title", { title });
+          send("done", { docId: "d" + nanoid(10), doc, sources });
+        }
+      } catch (err) {
+        const m = err instanceof Error ? err.message : "generation failed";
+        send("error", { error: m });
+      } finally {
+        controller.close();
+      }
     },
   });
 
