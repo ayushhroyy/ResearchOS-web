@@ -3,7 +3,6 @@
 // bytes through our edge worker), and POSTs /api/ingest when done.
 import { NextResponse } from "next/server";
 import { adminClient, userIdFromRequest } from "@/lib/db/supabase";
-import { nanoid } from "nanoid";
 
 function kindOf(mime: string): "image" | "pdf" | "note" {
   if (mime.startsWith("image/")) return "image";
@@ -30,7 +29,7 @@ export async function POST(req: Request) {
   const admin = adminClient();
   const kind = kindOf(body.mimeType);
   // Storage path: <userId>/<sourceId>/<safe-name>  (RLS keys on the userId folder)
-  const sourceId = nanoid(12);
+  const sourceId = crypto.randomUUID();
   const safeName = body.name.replace(/[^\w.\-]+/g, "_");
   const storagePath = `${userId}/${sourceId}/${safeName}`;
 

@@ -31,6 +31,7 @@ export function KbPanel() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // loadSources does the fetch + state updates as one async unit. We avoid
   // any synchronous setState in the effect body (React 19 rule) by setting
@@ -40,6 +41,10 @@ export function KbPanel() {
     if (res.ok) {
       const { sources } = (await res.json()) as { sources: Source[] };
       setSources(sources);
+      setLoadError(null);
+    } else {
+      const body = await res.json().catch(() => null);
+      setLoadError(typeof body?.error === "string" ? body.error : "could not load sources");
     }
     setLoading(false);
   }, []);
@@ -100,7 +105,11 @@ export function KbPanel() {
           </button>
         </div>
         <ScrollArea className="h-[32vh]">
-          {sources.length === 0 ? (
+          {loadError ? (
+            <div className="border-destructive/30 bg-destructive/10 text-destructive rounded-lg border px-3 py-2 text-xs">
+              {loadError}
+            </div>
+          ) : sources.length === 0 ? (
             <div className="border-border/60 text-muted-foreground/70 rounded-lg border border-dashed py-6 text-center text-xs">
               Nothing indexed yet. Drop a file above.
             </div>

@@ -8,6 +8,7 @@ import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export interface UploadItem {
+  id: string;
   name: string;
   status: "uploading" | "processing" | "ready" | "error";
   message?: string;
@@ -23,6 +24,7 @@ export function UploadZone({ onDone }: { onDone?: () => void }) {
       const list = Array.from(files);
 
       const staged: UploadItem[] = list.map((f) => ({
+        id: crypto.randomUUID(),
         name: f.name,
         status: "uploading",
       }));
@@ -30,11 +32,10 @@ export function UploadZone({ onDone }: { onDone?: () => void }) {
 
       await Promise.all(
         list.map(async (file, i) => {
+          const itemId = staged[i].id;
           const patch = (p: Partial<UploadItem>) =>
             setItems((prev) =>
-              prev.map((it, j) =>
-                j === prev.length - staged.length + i ? { ...it, ...p } : it,
-              ),
+              prev.map((it) => (it.id === itemId ? { ...it, ...p } : it)),
             );
 
           try {
@@ -50,7 +51,7 @@ export function UploadZone({ onDone }: { onDone?: () => void }) {
                 bytes: file.size,
               }),
             });
-            if (!tRes.ok) throw new Error("upload token failed");
+            if (!tRes.ok) throw new Error(await responseError(tRes, "upload token failed"));
             const t = await tRes.json();
 
             // 2. PUT the bytes directly to Supabase Storage
@@ -62,7 +63,7 @@ export function UploadZone({ onDone }: { onDone?: () => void }) {
               },
               body: file,
             });
-            if (!upRes.ok) throw new Error("upload to storage failed");
+            if (!upRes.ok) throw new Error(await responseError(upRes, "upload to storage failed"));
 
             // 3. ingest: OCR + chunk + embed
             patch({ status: "processing", message: "Reading & indexing…" });
@@ -139,11 +140,18 @@ export function UploadZone({ onDone }: { onDone?: () => void }) {
         <ul className="space-y-1 text-sm">
           {items.map((it, i) => (
             <li
-              key={i}
+              key={it.id}
               className="hover:bg-accent/40 flex items-center gap-2 rounded-md px-2 py-1.5"
             >
-              <span className="truncate flex-1" title={it.name}>
-                {it.name}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate" title={it.name}>
+                  {it.name}
+                </span>
+                {it.message && (
+                  <span className="text-muted-foreground/70 block truncate text-xs" title={it.message}>
+                    {it.message}
+                  </span>
+                )}
               </span>
               <StatusPill status={it.status} />
             </li>
@@ -152,6 +160,11 @@ export function UploadZone({ onDone }: { onDone?: () => void }) {
       )}
     </div>
   );
+}
+
+async function responseError(res: Response, fallback: string) {
+  const body = await res.json().catch(() => null);
+  return typeof body?.error === "string" ? body.error : fallback;
 }
 
 function StatusPill({ status }: { status: UploadItem["status"] }) {

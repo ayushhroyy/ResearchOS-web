@@ -272,11 +272,15 @@ async function readSse(
     if (dataLines.length === 0) return;
     const raw = dataLines.join("\n");
     dataLines.length = 0;
+    let parsed: unknown;
     try {
-      handlers[event]?.(JSON.parse(raw));
+      parsed = JSON.parse(raw);
     } catch {
       // ignore malformed lines
+      event = "message";
+      return;
     }
+    handlers[event]?.(parsed);
     event = "message";
   };
 

@@ -47,7 +47,9 @@ RULES:
 - Be surgical: emit the minimum ops that satisfy the request.
 - For "add a section about X": insert a heading then 1-2 paragraphs (multiple inserts, after the right anchor).
 - For color/format: use update_format with a hex color (#rrggbb) or named attr.
-- Call the apply_edits tool ONCE with all ops.`;
+- Prefer calling the apply_edits tool ONCE with all ops.
+- If tool calling is unavailable, return only JSON with this exact shape:
+  { "summary": "...", "ops": [ ... ] }`;
 
 /**
  * Plan an edit: given the doc + request, return the Op[] to apply.
@@ -86,7 +88,6 @@ export async function planEdit(
         },
       },
     ],
-    tool_choice: { type: "function", function: { name: "apply_edits" } },
     messages: [
       { role: "system", content: SYSTEM },
       {
@@ -100,16 +101,11 @@ export async function planEdit(
   // We asked for a function tool; narrow to that variant of the union.
   const call = calls.find((c) => c.type === "function" && "function" in c);
   const fn = call && "function" in call ? call.function : undefined;
-  if (!fn?.arguments) {
-    throw new Error("agent did not call apply_edits");
-  }
+  const content = completion.choices[0]?.message?.content;
+  const payload = fn?.arguments ?? content;
+  if (!payload) throw new Error("agent did not return an edit plan");
 
-  let parsed: EditPlan;
-  try {
-    parsed = JSON.parse(fn.arguments) as EditPlan;
-  } catch {
-    throw new Error("agent returned malformed edit plan");
-  }
+  const parsed = parseEditPlan(payload);
 
   if (!Array.isArray(parsed.ops)) {
     throw new Error("agent edit plan missing ops array");
@@ -117,6 +113,59 @@ export async function planEdit(
 
   return {
     summary: parsed.summary ?? "Applied edit.",
-    ops: parsed.ops as Op[],
+    ops: normalizeInsertOps(parsed.ops as Op[]),
   };
+}
+
+function parseEditPlan(payload: string): EditPlan {
+  const trimmed = payload.trim();
+  const json = trimmed.startsWith("```")
+    ? trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "")
+    : trimmed;
+
+  try {
+    return JSON.parse(json) as EditPlan;
+  } catch {
+    const start = json.indexOf("{");
+    const end = json.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      try {
+        return JSON.parse(json.slice(start, end + 1)) as EditPlan;
+      } catch {
+        /* fall through */
+      }
+    }
+    throw new Error("agent returned malformed edit plan");
+  }
+}
+
+function normalizeInsertOps(ops: Op[]): Op[] {
+  const normalized = ops.map((op, i) => {
+    if (op.op !== "insert" || op.after !== null) return op;
+    const prev = ops[i - 1];
+    if (prev?.op === "insert" && prev.after !== null) {
+      return { ...op, after: prev.after };
+    }
+    return op;
+  });
+
+  const result: Op[] = [];
+  for (let i = 0; i < normalized.length; i++) {
+    const op = normalized[i];
+    if (op.op !== "insert") {
+      result.push(op);
+      continue;
+    }
+
+    const group: Extract<Op, { op: "insert" }>[] = [op];
+    while (i + 1 < normalized.length) {
+      const next = normalized[i + 1];
+      if (next.op !== "insert" || next.after !== op.after) break;
+      group.push(next);
+      i++;
+    }
+
+    result.push(...group.reverse());
+  }
+  return result;
 }

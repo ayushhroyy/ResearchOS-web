@@ -72,49 +72,61 @@ alter table chunks     enable row level security;
 alter table documents  enable row level security;
 
 -- Sources: users see/manage only their own.
+drop policy if exists "sources select own" on sources;
 create policy "sources select own" on sources
   for select using (auth.uid() = user_id);
+drop policy if exists "sources insert own" on sources;
 create policy "sources insert own" on sources
   for insert with check (auth.uid() = user_id);
+drop policy if exists "sources update own" on sources;
 create policy "sources update own" on sources
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "sources delete own" on sources;
 create policy "sources delete own" on sources
   for delete using (auth.uid() = user_id);
 
 -- Chunks: same ownership model.
+drop policy if exists "chunks select own" on chunks;
 create policy "chunks select own" on chunks
   for select using (auth.uid() = user_id);
+drop policy if exists "chunks insert own" on chunks;
 create policy "chunks insert own" on chunks
   for insert with check (auth.uid() = user_id);
+drop policy if exists "chunks update own" on chunks;
 create policy "chunks update own" on chunks
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "chunks delete own" on chunks;
 create policy "chunks delete own" on chunks
   for delete using (auth.uid() = user_id);
 
 -- Documents.
+drop policy if exists "documents select own" on documents;
 create policy "documents select own" on documents
   for select using (auth.uid() = user_id);
+drop policy if exists "documents insert own" on documents;
 create policy "documents insert own" on documents
   for insert with check (auth.uid() = user_id);
+drop policy if exists "documents update own" on documents;
 create policy "documents update own" on documents
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "documents delete own" on documents;
 create policy "documents delete own" on documents
   for delete using (auth.uid() = user_id);
 
 -- ────────────────────────────────────────────────────────────────────────────
 -- STORAGE — private bucket for uploaded source files
 -- ────────────────────────────────────────────────────────────────────────────
--- Create a PRIVATE bucket named "sources" in Dashboard → Storage, then run:
-
--- (uncomment to create via SQL)
--- insert into storage.buckets (id, name, public) values ('sources', 'sources', false)
---   on conflict (id) do nothing;
+insert into storage.buckets (id, name, public) values ('sources', 'sources', false)
+  on conflict (id) do update set public = excluded.public;
 
 -- Storage RLS: a user can read/write only objects under their own user_id prefix.
+drop policy if exists "sources storage read own" on storage.objects;
 create policy "sources storage read own"  on storage.objects
   for select using (bucket_id = 'sources' and auth.uid()::text = (storage.foldername(name))[1]);
+drop policy if exists "sources storage write own" on storage.objects;
 create policy "sources storage write own" on storage.objects
   for insert with check (bucket_id = 'sources' and auth.uid()::text = (storage.foldername(name))[1]);
+drop policy if exists "sources storage delete own" on storage.objects;
 create policy "sources storage delete own" on storage.objects
   for delete using (bucket_id = 'sources' and auth.uid()::text = (storage.foldername(name))[1]);
 
