@@ -10,8 +10,8 @@ export const AI_BASE_URL =
 export const AI_KEY = process.env.AIMLAPI_KEY ?? "";
 
 export const AI_MODELS = {
-  chat: process.env.AIMLAPI_CHAT_MODEL ?? "gpt-4o-mini",
-  vision: process.env.AIMLAPI_VISION_MODEL ?? "gpt-4o-mini",
+  chat: process.env.AIMLAPI_CHAT_MODEL ?? "deepseek/deepseek-v4-flash",
+  vision: process.env.AIMLAPI_VISION_MODEL ?? "deepseek/deepseek-v4-flash",
   ocr: process.env.AIMLAPI_OCR_MODEL ?? "mistral-ocr-latest",
   embedding: process.env.AIMLAPI_EMBEDDING_MODEL ?? "text-embedding-3-small",
 } as const;
