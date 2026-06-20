@@ -128,3 +128,39 @@
     @apply font-sans;
   }
 }
+/* ── Print (PDF export via window.print) ─────────────────────────────────── */
+/* Only the editor pane prints; everything else is hidden. The editor pane
+   is tagged with data-print="doc" in the layout. */
+@media print {
+  body * { visibility: hidden !important; }
+  [data-print="doc"], [data-print="doc"] * { visibility: visible !important; }
+  [data-print="doc"] {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    max-width: none;
+  }
+  @page { margin: 2cm; }
+}
+
+/* ── ProseMirror editor ─────────────────────────────────────────────────── */
+.ProseMirror {
+  outline: none;
+  min-height: 60vh;
+}
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted-foreground);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.ProseMirror th, .ProseMirror td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+}
