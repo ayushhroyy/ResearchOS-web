@@ -4,9 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { UploadZone } from "@/components/upload/UploadZone";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 
 interface Source {
   id: string;
@@ -90,45 +88,43 @@ export function KbPanel() {
   };
 
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className="flex h-full flex-col gap-5">
       <section>
-        <h3 className="mb-2 text-sm font-semibold">Add to knowledge cluster</h3>
+        <SectionLabel>Add files</SectionLabel>
         <UploadZone onDone={refresh} />
       </section>
 
       <section className="min-h-0 flex-1">
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Sources</h3>
-          <Button variant="ghost" size="sm" onClick={refresh} disabled={loading}>
+          <SectionLabel>Indexed sources</SectionLabel>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={loading}
+            className="text-muted-foreground hover:text-foreground text-[11px] font-medium transition-colors disabled:opacity-50"
+          >
             {loading ? "…" : "Refresh"}
-          </Button>
+          </button>
         </div>
-        <ScrollArea className="h-[35vh]">
+        <ScrollArea className="h-[32vh]">
           {sources.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              No files yet. Upload something to build your cluster.
-            </p>
+            <div className="border-border/60 text-muted-foreground/70 rounded-lg border border-dashed py-6 text-center text-xs">
+              Nothing indexed yet. Drop a file above.
+            </div>
           ) : (
-            <ul className="space-y-1.5">
+            <ul className="space-y-1">
               {sources.map((s) => (
-                <li key={s.id} className="flex items-center gap-2 text-sm">
-                  <Badge variant="outline" className="text-[10px]">
+                <li
+                  key={s.id}
+                  className="hover:bg-accent/50 group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                >
+                  <span className="bg-muted text-muted-foreground inline-flex h-5 w-8 shrink-0 items-center justify-center rounded text-[9px] font-semibold tracking-wide">
                     {KIND_LABEL[s.kind]}
-                  </Badge>
+                  </span>
                   <span className="truncate flex-1" title={s.name}>
                     {s.name}
                   </span>
-                  <span
-                    className={
-                      s.status === "ready"
-                        ? "text-xs text-emerald-600"
-                        : s.status === "error"
-                          ? "text-xs text-destructive"
-                          : "text-muted-foreground text-xs"
-                    }
-                  >
-                    {s.status}
-                  </span>
+                  <StatusDot status={s.status} />
                 </li>
               ))}
             </ul>
@@ -137,36 +133,47 @@ export function KbPanel() {
       </section>
 
       <section>
-        <h3 className="mb-2 text-sm font-semibold">Test retrieval</h3>
-        <div className="flex gap-2">
-          <Input
-            placeholder="Ask something from your files…"
+        <SectionLabel>Test retrieval</SectionLabel>
+        <div className="bg-card focus-within:ring-ring/30 flex items-center gap-1 rounded-lg border p-1.5 focus-within:ring-2">
+          <input
+            placeholder="Query your cluster…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && runSearch()}
+            className="placeholder:text-muted-foreground/60 h-7 flex-1 bg-transparent px-1.5 text-xs outline-none"
           />
-          <Button size="sm" onClick={runSearch} disabled={searching}>
+          <Button
+            size="sm"
+            onClick={runSearch}
+            disabled={searching}
+            className="h-7 text-xs"
+          >
             {searching ? "…" : "Search"}
           </Button>
         </div>
         {results && (
           <div className="mt-2 space-y-2">
             {results.length === 0 ? (
-              <p className="text-muted-foreground text-xs">
-                No matches. Upload more files or try another query.
+              <p className="text-muted-foreground/70 text-xs">
+                No matches — upload more files or rephrase.
               </p>
             ) : (
               results.map((r) => (
                 <div
                   key={r.chunkId}
-                  className="border-border bg-muted/30 rounded-md border p-2 text-xs"
+                  className="bg-card border-border/70 rounded-lg border p-2.5 text-xs"
                 >
                   <div className="text-muted-foreground mb-1 flex items-center gap-2">
-                    <span className="font-medium">{r.sourceName}</span>
-                    <span>· chunk {r.ordinal}</span>
-                    <span>· {(r.similarity * 100).toFixed(0)}%</span>
+                    <span className="truncate font-medium">{r.sourceName}</span>
+                    <span className="opacity-40">·</span>
+                    <span>#{r.ordinal}</span>
+                    <span className="text-primary ml-auto font-medium">
+                      {(r.similarity * 100).toFixed(0)}%
+                    </span>
                   </div>
-                  <p className="line-clamp-4">{r.content}</p>
+                  <p className="text-muted-foreground line-clamp-4 leading-relaxed">
+                    {r.content}
+                  </p>
                 </div>
               ))
             )}
@@ -174,5 +181,31 @@ export function KbPanel() {
         )}
       </section>
     </div>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <h3 className="text-muted-foreground mb-2 text-[11px] font-semibold uppercase tracking-wider">
+      {children}
+    </h3>
+  );
+}
+
+function StatusDot({
+  status,
+}: {
+  status: "pending" | "processing" | "ready" | "error";
+}) {
+  const map = {
+    ready: { c: "bg-emerald-500", t: "" },
+    processing: { c: "bg-amber-500 animate-pulse", t: "" },
+    pending: { c: "bg-muted-foreground/40", t: "" },
+    error: { c: "bg-destructive", t: "" },
+  }[status];
+  return (
+    <span className="h-1.5 w-1.5 shrink-0 rounded-full" title={status}>
+      <span className={`block h-full w-full rounded-full ${map.c}`} />
+    </span>
   );
 }

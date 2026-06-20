@@ -9,7 +9,6 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Editor } from "@tiptap/react";
 import type { Op, TipTapDoc } from "@/lib/doc/schema";
@@ -130,47 +129,118 @@ export function ChatPanel({ doc, onDoc, onTitle, applyEdits }: ChatPanelProps) {
 
   return (
     <div className="flex h-full flex-col">
+      {/* Pane header */}
+      <div className="border-border/70 bg-card/40 flex h-12 shrink-0 items-center justify-between border-b px-4">
+        <span className="text-sm font-semibold tracking-tight">
+          {hasDoc ? "Refine" : "Compose"}
+        </span>
+        <span className="text-muted-foreground text-[11px]">
+          {hasDoc ? "ask for surgical edits" : "describe what to build"}
+        </span>
+      </div>
+
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-3 p-4">
+        <div className="space-y-4 p-4">
           {messages.map((m, i) => (
-            <div
-              key={i}
-              className={`max-w-[90%] rounded-lg px-3 py-2 text-sm ${
-                m.role === "user"
-                  ? "bg-primary text-primary-foreground ml-auto"
-                  : m.role === "system"
-                    ? "bg-muted text-muted-foreground"
-                    : "bg-muted"
-              }`}
-            >
-              {m.content}
-            </div>
+            <ChatBubble key={i} role={m.role} content={m.content} />
           ))}
           {busy && (
-            <div className="bg-muted max-w-[90%] rounded-lg px-3 py-2 text-sm">
-              <span className="animate-pulse">Working…</span>
+            <div className="flex items-center gap-2 px-1">
+              <TypingDots />
+              <span className="text-muted-foreground text-xs">
+                Working…
+              </span>
             </div>
           )}
         </div>
       </ScrollArea>
 
-      <div className="border-border flex gap-2 border-t p-3">
-        <Input
-          placeholder={
-            hasDoc
-              ? "Ask for an edit… (e.g. add a section on dogs)"
-              : "What should I build from your files?"
-          }
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
-          disabled={busy}
-        />
-        <Button onClick={send} disabled={busy}>
-          {busy ? "…" : "Send"}
-        </Button>
+      {/* Composer */}
+      <div className="border-border/70 border-t p-3">
+        <div className="bg-card focus-within:ring-ring/40 flex items-end gap-2 rounded-xl border p-2 transition-shadow focus-within:ring-2">
+          <textarea
+            placeholder={
+              hasDoc
+                ? "Ask for an edit — e.g. “add a section on dogs”, “make the intro red”, “add a 3-column table”"
+                : "What should I build from your files? — a report, a paper, a question bank…"
+            }
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+            disabled={busy}
+            rows={2}
+            className="placeholder:text-muted-foreground/70 max-h-40 min-h-[2.5rem] flex-1 resize-none bg-transparent px-1.5 py-1 text-sm outline-none disabled:opacity-50"
+          />
+          <Button
+            onClick={send}
+            disabled={busy || !input.trim()}
+            size="sm"
+            className="h-8 shrink-0"
+          >
+            {busy ? "…" : "Send"}
+          </Button>
+        </div>
+        <p className="text-muted-foreground/70 mt-1.5 px-1 text-[11px]">
+          Enter to send · Shift+Enter for newline
+        </p>
       </div>
     </div>
+  );
+}
+
+function ChatBubble({
+  role,
+  content,
+}: {
+  role: "user" | "assistant" | "system";
+  content: string;
+}) {
+  if (role === "user") {
+    return (
+      <div className="flex justify-end">
+        <div className="bg-primary text-primary-foreground max-w-[88%] whitespace-pre-wrap rounded-2xl rounded-br-md px-3.5 py-2 text-sm leading-relaxed shadow-sm">
+          {content}
+        </div>
+      </div>
+    );
+  }
+  if (role === "system") {
+    return (
+      <div className="bg-destructive/10 text-destructive max-w-[92%] whitespace-pre-wrap rounded-lg border border-destructive/20 px-3 py-2 text-xs">
+        {content}
+      </div>
+    );
+  }
+  return (
+    <div className="flex justify-start">
+      <div className="bg-card border-border max-w-[92%] whitespace-pre-wrap rounded-2xl rounded-bl-md border px-3.5 py-2 text-sm leading-relaxed">
+        {content}
+      </div>
+    </div>
+  );
+}
+
+function TypingDots() {
+  return (
+    <span className="text-muted-foreground inline-flex items-center gap-1">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="h-1.5 w-1.5 rounded-full bg-current"
+          style={{
+            animation: "ros-bounce 1.2s infinite",
+            animationDelay: `${i * 0.15}s`,
+            opacity: 0.4,
+          }}
+        />
+      ))}
+      <style>{`@keyframes ros-bounce{0%,80%,100%{transform:translateY(0);opacity:.3}40%{transform:translateY(-3px);opacity:1}}`}</style>
+    </span>
   );
 }
 

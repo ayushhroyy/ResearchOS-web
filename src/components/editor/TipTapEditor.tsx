@@ -82,13 +82,21 @@ export function TipTapEditor({ doc, onChange, onReady }: TipTapEditorProps) {
     if (editor) onReadyRef.current?.(editor);
   }, [editor]);
 
+  const isEmpty = !doc || (doc.content?.length ?? 0) === 0;
+
   return (
-    <div className="prose-editor h-full overflow-y-auto">
-      <div className="mx-auto max-w-3xl px-8 py-10">
-        <EditorContent
-          editor={editor}
-          className="prose dark:prose-invert max-w-none"
-        />
+    <div className="h-full overflow-y-auto">
+      {isEmpty && (
+        <div className="text-muted-foreground/70 flex h-full flex-col items-center justify-center px-6 text-center">
+          <div className="mb-3 text-3xl opacity-30">✦</div>
+          <p className="text-sm font-medium">No document yet</p>
+          <p className="mt-1 max-w-xs text-xs">
+            Generate one from the Compose panel — then refine it with edits.
+          </p>
+        </div>
+      )}
+      <div className={`mx-auto max-w-3xl px-10 py-12 ${isEmpty ? "hidden" : ""}`}>
+        <EditorContent editor={editor} />
       </div>
     </div>
   );

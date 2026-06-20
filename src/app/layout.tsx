@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Rabbitt — agentic document editing",
+  title: "ResearchOS — agentic document editing",
   description:
     "Turn your files into a knowledge cluster, then generate and edit documents with an AI agent.",
 };
@@ -26,9 +26,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">
+      <body className="bg-background text-foreground min-h-full flex flex-col">
         <AuthProvider>
           {children}
           <Toaster richColors position="bottom-right" />

@@ -74,11 +74,12 @@ export default function Home() {
   if (!session) return <SignIn />;
 
   return (
-    <div className="flex h-screen flex-col">
-      <header className="border-border flex h-12 shrink-0 items-center justify-between border-b px-4">
-        <div className="flex items-center gap-2">
-          <span className="text-base font-semibold tracking-tight">Rabbitt</span>
-          <span className="text-muted-foreground text-xs">
+    <div className="app-canvas flex h-screen flex-col">
+      <header className="border-border/70 flex h-12 shrink-0 items-center justify-between border-b px-4 backdrop-blur-sm">
+        <div className="flex items-center gap-2.5">
+          <span className="brand-mark">R</span>
+          <span className="text-sm font-semibold tracking-tight">ResearchOS</span>
+          <span className="text-muted-foreground ml-1 hidden text-xs sm:inline">
             agentic document editing
           </span>
         </div>
@@ -88,9 +89,9 @@ export default function Home() {
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
         {/* Knowledge cluster */}
         <ResizablePanel defaultSize={22} minSize={16} maxSize={32}>
-          <div className="h-full overflow-y-auto p-4">
+          <PaneShell label="Knowledge cluster" sublabel="Your indexed sources">
             <KbPanel />
-          </div>
+          </PaneShell>
         </ResizablePanel>
         <ResizableHandle />
 
@@ -109,8 +110,14 @@ export default function Home() {
         {/* Editor */}
         <ResizablePanel defaultSize={44} minSize={24}>
           <div className="flex h-full flex-col">
-            <div className="border-border bg-muted/30 flex h-10 shrink-0 items-center justify-between gap-2 border-b px-4">
-              <span className="text-sm font-medium">{title}</span>
+            <div className="border-border/70 bg-card/40 flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
+                  Document
+                </span>
+                <span className="text-muted-foreground/40">/</span>
+                <span className="truncate text-sm font-medium">{title}</span>
+              </div>
               <DocActions title={title} doc={doc} onAddWebRefs={addWebRefs} />
             </div>
             <div className="min-h-0 flex-1" data-print="doc">
@@ -123,10 +130,37 @@ export default function Home() {
   );
 }
 
+function PaneShell({
+  label,
+  sublabel,
+  children,
+}: {
+  label: string;
+  sublabel?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex h-full flex-col">
+      <div className="border-border/70 bg-card/40 flex h-12 shrink-0 flex-col justify-center gap-0 border-b px-4">
+        <span className="text-sm font-semibold tracking-tight">{label}</span>
+        {sublabel && (
+          <span className="text-muted-foreground text-[11px]">{sublabel}</span>
+        )}
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
+    </div>
+  );
+}
+
 function SignOut() {
   const { supabase } = useAuth();
   return (
-    <Button variant="ghost" size="sm" onClick={() => supabase?.auth.signOut()}>
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => supabase?.auth.signOut()}
+      className="text-muted-foreground hover:text-foreground"
+    >
       Sign out
     </Button>
   );

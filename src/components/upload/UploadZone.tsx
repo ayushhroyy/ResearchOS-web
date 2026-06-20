@@ -116,15 +116,20 @@ export function UploadZone({ onDone }: { onDone?: () => void }) {
           setDragging(false);
           if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
         }}
-        className={`rounded-lg border-2 border-dashed p-6 text-center text-sm transition-colors ${
+        className={`group relative w-full rounded-xl border border-dashed p-5 text-center text-sm transition-all ${
           dragging
-            ? "border-primary bg-primary/5"
-            : "border-border hover:border-primary/50"
+            ? "border-primary bg-primary/10 ring-ring/40 ring-2"
+            : "border-border/70 hover:border-primary/40 hover:bg-accent/30"
         }`}
       >
+        <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-accent text-accent-foreground transition-transform group-hover:scale-105">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M12 16V4m0 0 4 4m-4-4-4 4M5 20h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
         <div className="font-medium">Drop files or click to upload</div>
-        <div className="text-muted-foreground mt-1 text-xs">
-          Images, PDFs, text &amp; markdown notes
+        <div className="text-muted-foreground/70 mt-0.5 text-xs">
+          Images · PDFs · text &amp; markdown
         </div>
         <input
           ref={inputRef}
@@ -140,10 +145,15 @@ export function UploadZone({ onDone }: { onDone?: () => void }) {
       </button>
 
       {items.length > 0 && (
-        <ul className="text-sm space-y-1">
+        <ul className="space-y-1 text-sm">
           {items.map((it, i) => (
-            <li key={i} className="flex items-center gap-2">
-              <span className="truncate flex-1">{it.name}</span>
+            <li
+              key={i}
+              className="hover:bg-accent/40 flex items-center gap-2 rounded-md px-2 py-1.5"
+            >
+              <span className="truncate flex-1" title={it.name}>
+                {it.name}
+              </span>
               <StatusPill status={it.status} />
             </li>
           ))}
@@ -155,10 +165,15 @@ export function UploadZone({ onDone }: { onDone?: () => void }) {
 
 function StatusPill({ status }: { status: UploadItem["status"] }) {
   const map = {
-    uploading: { t: "Uploading", c: "text-muted-foreground" },
-    processing: { t: "Indexing", c: "text-amber-600" },
-    ready: { t: "Ready", c: "text-emerald-600" },
-    error: { t: "Error", c: "text-destructive" },
+    uploading: { t: "Uploading", dot: "bg-muted-foreground/50" },
+    processing: { t: "Indexing", dot: "bg-amber-500 animate-pulse" },
+    ready: { t: "Ready", dot: "bg-emerald-500" },
+    error: { t: "Error", dot: "bg-destructive" },
   }[status];
-  return <span className={`text-xs ${map.c}`}>{map.t}</span>;
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+      <span className={`h-1.5 w-1.5 rounded-full ${map.dot}`} />
+      {map.t}
+    </span>
+  );
 }

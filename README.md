@@ -1,4 +1,4 @@
-# Rabbitt AI
+# ResearchOS
 
 Agentic document editing. Drop in files (images, PDFs, notes) → they're OCR'd,
 chunked, embedded into a knowledge cluster. Then ask the agent to generate a
